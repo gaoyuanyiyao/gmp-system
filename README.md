@@ -399,3 +399,5 @@ mvn spring-boot:run
 ---
 
 **© 2025 GMP系统项目组 - 保留所有权利**
+
+推荐使用 Qoder 使用 AI-IDE 类似系统的开发： https://qoder.com/referral?referral_code=wHDGRB7MAxIKcsOHSer05mrBTGznYO2L
