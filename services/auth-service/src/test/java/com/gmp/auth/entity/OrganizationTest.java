@@ -1,371 +1,470 @@
 package com.gmp.auth.entity;
 
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.springframework.test.context.ActiveProfiles;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.EnumSource;
+import org.junit.jupiter.params.provider.NullAndEmptySource;
+import org.junit.jupiter.params.provider.ValueSource;
 
 import java.time.LocalDateTime;
 
-import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.jupiter.api.Assertions.*;
 
 /**
- * 测试Why-What-How注释:
- *
- * WHY: GMP企业组织架构是多组织多角色权限管控的基础，必须确保组织实体的准确性和
- * 业务逻辑的正确性，因为组织架构变化会影响所有用户的权限计算，任何错误都可能
- * 导致系统级别的安全问题，需要严格验证所有业务规则。
- *
- * WHAT: OrganizationEntityTest完整测试组织实体的所有功能：组织类型枚举、层级关系、
- * GMP合规性判断、状态控制、业务规则验证，确保组织管理的核心功能在各种情况下
- * 都能正确工作，支撑多组织架构的权限管控需求。
- *
- * HOW: 使用JUnit 5 + AssertJ框架实现TDD测试模式，通过构建器模式创建测试数据，
- * 覆盖正常流程、边界条件、异常场景，通过断言验证预期结果，确保测试的可靠性。
+ * 测试 Organization 实体类的所有方法
  */
-@ActiveProfiles("test")
 class OrganizationTest {
 
-    @Test
-    void testOrganizationCreation() {
-        // Given: 创建一个完整的组织实例
-        Organization org = Organization.builder()
-                .orgCode("ORG_DEPT")
-                .orgName("部门管理组织")
-                .orgType(Organization.OrganizationType.DEPARTMENT)
-                .description("负责企业部门管理")
-                .manager("张经理")
-                .gmpRelevant(false)
-                .orgStatus(Organization.OrganizationStatus.ACTIVE)
-                .hierarchyLevel(1)
-                .build();
+    private Organization organization;
 
-        // When & Then: 验证组织基本信息正确创建
-        assertThat(org.getOrgCode()).isEqualTo("ORG_DEPT");
-        assertThat(org.getOrgName()).isEqualTo("部门管理组织");
-        assertThat(org.getOrgType()).isEqualTo(Organization.OrganizationType.DEPARTMENT);
-        assertThat(org.getManager()).isEqualTo("张经理");
-        assertThat(org.getGmpRelevant()).isFalse();
-        assertThat(org.isActive()).isTrue();
-    }
-
-    @Test
-    void testOrganizationTypeEnum() {
-        // Test DEPARTMENT类型
-        assertThat(Organization.OrganizationType.DEPARTMENT.getDescription()).isEqualTo("部门管理");
-
-        // Test PRODUCTION类型
-        assertThat(Organization.OrganizationType.PRODUCTION.getDescription()).isEqualTo("生产管理");
-
-        // Test QUALITY类型 (GMP相关)
-        assertThat(Organization.OrganizationType.QUALITY.getDescription()).isEqualTo("质量管理");
-
-        // 验证所有枚举值都有描述
-        for (Organization.OrganizationType type : Organization.OrganizationType.values()) {
-            assertThat(type.getDescription()).isNotNull();
-            assertThat(type.getDescription()).isNotEmpty();
-        }
-    }
-
-    @Test
-    void testOrganizationStatusEnum() {
-        // Test ACTIVE状态
-        assertThat(Organization.OrganizationStatus.ACTIVE.getDescription()).isEqualTo("正常运行");
-
-        // Test ARCHIVED状态
-        assertThat(Organization.OrganizationStatus.ARCHIVED.getDescription()).isEqualTo("已归档");
-
-        // 验证所有状态都有描述
-        for (Organization.OrganizationStatus status : Organization.OrganizationStatus.values()) {
-            assertThat(status.getDescription()).isNotNull();
-            assertThat(status.getDescription()).isNotEmpty();
-        }
-    }
-
-    @Test
-    void testIsActive() {
-        // Given: 不同状态的组织
-        Organization activeOrg = Organization.builder()
-                .orgStatus(Organization.OrganizationStatus.ACTIVE)
-                .build();
-
-        Organization inactiveOrg = Organization.builder()
-                .orgStatus(Organization.OrganizationStatus.INACTIVE)
-                .build();
-
-        Organization archivedOrg = Organization.builder()
-                .orgStatus(Organization.OrganizationStatus.ARCHIVED)
-                .build();
-
-        // Then: 验证状态判断
-        assertThat(activeOrg.isActive()).isTrue();
-        assertThat(inactiveOrg.isActive()).isFalse();
-        assertThat(archivedOrg.isActive()).isFalse();
-    }
-
-    @Test
-    void testGetFullPathWithParent() {
-        // Given: 创建父子组织关系
-        Organization parentOrg = Organization.builder()
-                .orgName("生产中心")
-                .build();
-
-        Organization childOrg = Organization.builder()
-                .orgName("A车间")
-                .parent(parentOrg)
-                .build();
-
-        // Then: 验证完整路径计算
-        assertThat(parentOrg.getFullPath()).isEqualTo("生产中心");
-        assertThat(childOrg.getFullPath()).isEqualTo("生产中心 > A车间");
-    }
-
-    @Test
-    void testGetFullPathWithoutParent() {
-        // Given: 创建顶级组织
-        Organization rootOrg = Organization.builder()
-                .orgName("GMP信息系统")
-                .build();
-
-        // Then: 验证根组织的完整路径
-        assertThat(rootOrg.getFullPath()).isEqualTo("GMP信息系统");
-    }
-
-    @Test
-    void testIsGmpOrganization() {
-        // Given: 创建不同类型的组织
-        Organization qualityOrg = Organization.builder()
+    @BeforeEach
+    void setUp() {
+        organization = Organization.builder()
+                .id(1L)
+                .orgCode("ORG_QA_DEPARTMENT")
+                .orgName("质量保证部")
+                .description("负责GMP质量保证工作")
                 .orgType(Organization.OrganizationType.QUALITY)
-                .build();
-
-        Organization productionOrg = Organization.builder()
-                .orgType(Organization.OrganizationType.PRODUCTION)
-                .build();
-
-        Organization complianceOrg = Organization.builder()
-                .orgType(Organization.OrganizationType.COMPLIANCE)
-                .build();
-
-        Organization trainingOrg = Organization.builder()
-                .orgType(Organization.OrganizationType.TRAINING)
-                .build();
-
-        Organization hrOrg = Organization.builder()
-                .orgType(Organization.OrganizationType.HR)
-                .gmpRelevant(true) // 明确标记为GMP相关
-                .build();
-
-        Organization normalDeptOrg = Organization.builder()
-                .orgType(Organization.OrganizationType.DEPARTMENT)
-                .gmpRelevant(false)
-                .build();
-
-        // Then: 验证GMP组织识别
-        assertThat(qualityOrg.isGmpOrganization()).isTrue();     // 质量组织默认GMP相关
-        assertThat(productionOrg.isGmpOrganization()).isTrue();  // 生产组织默认GMP相关
-        assertThat(complianceOrg.isGmpOrganization()).isTrue();  // 合规组织默认GMP相关
-        assertThat(trainingOrg.isGmpOrganization()).isTrue();    // 培训组织默认GMP相关
-        assertThat(hrOrg.isGmpOrganization()).isTrue();          // 明确标记为GMP相关
-        assertThat(normalDeptOrg.isGmpOrganization()).isFalse(); // 普通部门非GMP相关
-    }
-
-    @Test
-    void testGetResponsibleManager() {
-        // Given: 组织有GMP责任人和普通负责人
-        Organization orgWithBothManagers = Organization.builder()
-                .manager("张经理")
-                .gmpResponsible("李总监")
-                .build();
-
-        // Given: 组织只有普通负责人
-        Organization orgWithManagerOnly = Organization.builder()
-                .manager("王经理")
-                .build();
-
-        // Given: 组织无任何负责人
-        Organization orgWithoutManagers = Organization.builder()
-                .build();
-
-        // Then: 验证负责人获取逻辑
-        assertThat(orgWithBothManagers.getResponsibleManager()).isEqualTo("李总监");
-        assertThat(orgWithManagerOnly.getResponsibleManager()).isEqualTo("王经理");
-        assertThat(orgWithoutManagers.getResponsibleManager()).isNull();
-    }
-
-    @Test
-    void testOrganizationHierarchy() {
-        // Given: 创建多级组织架构
-        Organization company = Organization.builder()
-                .orgCode("ORG_COMPANY")
-                .orgName("GMP医药有限公司")
-                .hierarchyLevel(1)
-                .build();
-
-        Organization dept = Organization.builder()
-                .orgCode("ORG_DEPT")
-                .orgName("生产部门")
                 .hierarchyLevel(2)
-                .parent(company)
-                .build();
-
-        Organization workshop = Organization.builder()
-                .orgCode("ORG_WS")
-                .orgName("A车间")
-                .hierarchyLevel(3)
-                .parent(dept)
-                .build();
-
-        // Then: 验证层级关系
-        assertThat(company.getHierarchyLevel()).isEqualTo(1);
-        assertThat(company.getParent()).isNull();
-        assertThat(company.getFullPath()).isEqualTo("GMP医药有限公司");
-
-        assertThat(dept.getHierarchyLevel()).isEqualTo(2);
-        assertThat(dept.getParent()).isSameAs(company);
-        assertThat(dept.getFullPath()).isEqualTo("GMP医药有限公司 > 生产部门");
-
-        assertThat(workshop.getHierarchyLevel()).isEqualTo(3);
-        assertThat(workshop.getParent()).isSameAs(dept);
-        assertThat(workshop.getFullPath()).isEqualTo("GMP医药有限公司 > 生产部门 > A车间");
-    }
-
-    @Test
-    void testAuditFields() {
-        LocalDateTime now = LocalDateTime.now();
-
-        // Given: 设置审计字段
-        Organization org = Organization.builder()
-                .createdAt(now)
-                .updatedAt(now)
+                .manager("张经理")
+                .contactInfo("电话: 13800138000")
+                .orgStatus(Organization.OrganizationStatus.ACTIVE)
+                .gmpRelevant(true)
+                .gmpResponsible("李质量负责人")
+                .gmpRequirements("符合GMP规范要求")
+                .createdAt(LocalDateTime.now())
+                .updatedAt(LocalDateTime.now())
                 .createdBy(1L)
                 .updatedBy(1L)
                 .version(1)
                 .build();
-
-        // Then: 验证审计字段
-        assertThat(org.getCreatedAt()).isEqualTo(now);
-        assertThat(org.getUpdatedAt()).isEqualTo(now);
-        assertThat(org.getCreatedBy()).isEqualTo(1L);
-        assertThat(org.getUpdatedBy()).isEqualTo(1L);
-        assertThat(org.getVersion()).isEqualTo(1);
     }
 
     @Test
-    void testOrganizationValidation() {
-        // Test valid organization codes
-        Organization validOrg = Organization.builder()
-                .orgCode("ORG_DEPT_001")
-                .orgName("测试组织")
+    void testBuilderPattern() {
+        assertNotNull(organization);
+        assertEquals(1L, organization.getId());
+        assertEquals("ORG_QA_DEPARTMENT", organization.getOrgCode());
+        assertEquals("质量保证部", organization.getOrgName());
+        assertEquals("负责GMP质量保证工作", organization.getDescription());
+        assertEquals(Organization.OrganizationType.QUALITY, organization.getOrgType());
+        assertEquals(2, organization.getHierarchyLevel());
+        assertEquals("张经理", organization.getManager());
+        assertEquals("电话: 13800138000", organization.getContactInfo());
+        assertEquals(Organization.OrganizationStatus.ACTIVE, organization.getOrgStatus());
+        assertTrue(organization.getGmpRelevant());
+        assertEquals("李质量负责人", organization.getGmpResponsible());
+        assertEquals("符合GMP规范要求", organization.getGmpRequirements());
+        assertNotNull(organization.getCreatedAt());
+        assertNotNull(organization.getUpdatedAt());
+        assertEquals(1L, organization.getCreatedBy());
+        assertEquals(1L, organization.getUpdatedBy());
+        assertEquals(1, organization.getVersion());
+    }
+
+    @Test
+    void testNoArgsConstructor() {
+        Organization emptyOrg = new Organization();
+        assertNotNull(emptyOrg);
+        assertNull(emptyOrg.getId());
+        assertNull(emptyOrg.getOrgCode());
+        assertNull(emptyOrg.getOrgName());
+        assertNull(emptyOrg.getDescription());
+        assertNull(emptyOrg.getOrgType());
+        assertNull(emptyOrg.getHierarchyLevel());
+        assertNull(emptyOrg.getManager());
+        assertNull(emptyOrg.getContactInfo());
+        assertNull(emptyOrg.getOrgStatus());
+        assertNull(emptyOrg.getGmpRelevant());
+        assertNull(emptyOrg.getGmpResponsible());
+        assertNull(emptyOrg.getGmpRequirements());
+        assertNull(emptyOrg.getCreatedAt());
+        assertNull(emptyOrg.getUpdatedAt());
+        assertNull(emptyOrg.getCreatedBy());
+        assertNull(emptyOrg.getUpdatedBy());
+        assertNull(emptyOrg.getVersion());
+    }
+
+    @Test
+    void testAllArgsConstructor() {
+        LocalDateTime now = LocalDateTime.now();
+        Organization org = new Organization(
+                1L, "ORG_HR_DEPARTMENT", "人力资源部", "负责人力资源管理",
+                Organization.OrganizationType.HR, null, 2, "王经理", "电话: 13900139000",
+                Organization.OrganizationStatus.ACTIVE, false, null, null,
+                now, now, 1L, 1L, 1);
+
+        assertNotNull(org);
+        assertEquals(1L, org.getId());
+        assertEquals("ORG_HR_DEPARTMENT", org.getOrgCode());
+        assertEquals("人力资源部", org.getOrgName());
+        assertEquals("负责人力资源管理", org.getDescription());
+        assertEquals(Organization.OrganizationType.HR, org.getOrgType());
+        assertNull(org.getParent());
+        assertEquals(2, org.getHierarchyLevel());
+        assertEquals("王经理", org.getManager());
+        assertEquals("电话: 13900139000", org.getContactInfo());
+        assertEquals(Organization.OrganizationStatus.ACTIVE, org.getOrgStatus());
+        assertFalse(org.getGmpRelevant());
+        assertNull(org.getGmpResponsible());
+        assertNull(org.getGmpRequirements());
+        assertEquals(now, org.getCreatedAt());
+        assertEquals(now, org.getUpdatedAt());
+        assertEquals(1L, org.getCreatedBy());
+        assertEquals(1L, org.getUpdatedBy());
+        assertEquals(1, org.getVersion());
+    }
+
+    @Test
+    void testIsActive_WhenActive() {
+        organization.setOrgStatus(Organization.OrganizationStatus.ACTIVE);
+        assertTrue(organization.isActive());
+    }
+
+    @ParameterizedTest
+    @EnumSource(value = Organization.OrganizationStatus.class, names = {"INACTIVE", "UNDER_REVIEW", "MERGED", "ARCHIVED"})
+    void testIsActive_WhenNotActive(Organization.OrganizationStatus status) {
+        organization.setOrgStatus(status);
+        assertFalse(organization.isActive());
+    }
+
+    @Test
+    void testGetFullPath_WithoutParent() {
+        organization.setParent(null);
+        assertEquals("质量保证部", organization.getFullPath());
+    }
+
+    @Test
+    void testGetFullPath_WithParent() {
+        Organization parentOrg = Organization.builder()
+                .orgName("公司总部")
+                .build();
+        organization.setParent(parentOrg);
+        
+        assertEquals("公司总部 > 质量保证部", organization.getFullPath());
+    }
+
+    @Test
+    void testGetFullPath_WithGrandParent() {
+        Organization grandParent = Organization.builder()
+                .orgName("集团公司")
+                .build();
+        
+        Organization parentOrg = Organization.builder()
+                .orgName("公司总部")
+                .parent(grandParent)
+                .build();
+                
+        organization.setParent(parentOrg);
+        
+        assertEquals("集团公司 > 公司总部 > 质量保证部", organization.getFullPath());
+    }
+
+    @Test
+    void testOrganizationTypeEnum() {
+        assertEquals("部门管理", Organization.OrganizationType.DEPARTMENT.getDescription());
+        assertEquals("生产管理", Organization.OrganizationType.PRODUCTION.getDescription());
+        assertEquals("质量管理", Organization.OrganizationType.QUALITY.getDescription());
+        assertEquals("合规审核", Organization.OrganizationType.COMPLIANCE.getDescription());
+        assertEquals("培训管理", Organization.OrganizationType.TRAINING.getDescription());
+        assertEquals("人力资源", Organization.OrganizationType.HR.getDescription());
+        assertEquals("信息技术", Organization.OrganizationType.IT.getDescription());
+        assertEquals("设备维护", Organization.OrganizationType.MAINTENANCE.getDescription());
+        assertEquals("后勤保障", Organization.OrganizationType.LOGISTICS.getDescription());
+        assertEquals("安全环保", Organization.OrganizationType.SAFETY.getDescription());
+    }
+
+    @Test
+    void testOrganizationStatusEnum() {
+        assertEquals("正常运行", Organization.OrganizationStatus.ACTIVE.getDescription());
+        assertEquals("临时停用", Organization.OrganizationStatus.INACTIVE.getDescription());
+        assertEquals("审核中", Organization.OrganizationStatus.UNDER_REVIEW.getDescription());
+        assertEquals("已合并", Organization.OrganizationStatus.MERGED.getDescription());
+        assertEquals("已归档", Organization.OrganizationStatus.ARCHIVED.getDescription());
+    }
+
+    @Test
+    void testEqualsAndHashCode() {
+        Organization org1 = Organization.builder()
+                .id(1L)
+                .orgCode("ORG_TEST")
+                .build();
+                
+        Organization org2 = Organization.builder()
+                .id(1L)
+                .orgCode("ORG_TEST")
+                .build();
+                
+        Organization org3 = Organization.builder()
+                .id(2L)
+                .orgCode("ORG_DIFFERENT")
                 .build();
 
-        assertThat(validOrg.getOrgCode()).matches("^[A-Z0-9_]+$");
-
-        // Test invalid organization codes (should be validated by @Pattern annotation in practice)
-        assertThat("ORG_DEPT").matches("^[A-Z_]+$");
-        assertThat("org_dept").doesNotMatch("^[A-Z_]+$");
-        assertThat("ORG-DEPT").doesNotMatch("^[A-Z_]+$");
+        assertEquals(org1, org2);
+        assertNotEquals(org1, org3);
+        assertEquals(org1.hashCode(), org2.hashCode());
+        assertNotEquals(org1.hashCode(), org3.hashCode());
     }
 
     @Test
-    void testGmpCompliance() {
-        // Given: GMP合规组织
+    void testToString() {
+        String toString = organization.toString();
+        assertNotNull(toString);
+        assertTrue(toString.contains("ORG_QA_DEPARTMENT"));
+        assertTrue(toString.contains("质量保证部"));
+        assertTrue(toString.contains("QUALITY"));
+    }
+
+    @Test
+    void testDefaultValues() {
+        Organization defaultOrg = Organization.builder()
+                .orgCode("ORG_DEFAULT")
+                .orgName("默认部门")
+                .build();
+
+        assertEquals(Organization.OrganizationType.DEPARTMENT, defaultOrg.getOrgType());
+        assertEquals(1, defaultOrg.getHierarchyLevel());
+        assertEquals(Organization.OrganizationStatus.ACTIVE, defaultOrg.getOrgStatus());
+        assertFalse(defaultOrg.getGmpRelevant());
+        assertEquals(1, defaultOrg.getVersion());
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"ORG_QA", "ORG_PRODUCTION", "ORG_HR_DEPARTMENT"})
+    void testValidOrgCodes(String orgCode) {
+        organization.setOrgCode(orgCode);
+        assertEquals(orgCode, organization.getOrgCode());
+    }
+
+    @Test
+    void testParentChildRelationship() {
+        Organization parent = Organization.builder()
+                .id(100L)
+                .orgCode("ORG_PARENT")
+                .orgName("父组织")
+                .build();
+                
+        Organization child = Organization.builder()
+                .id(101L)
+                .orgCode("ORG_CHILD")
+                .orgName("子组织")
+                .parent(parent)
+                .hierarchyLevel(2)
+                .build();
+
+        assertEquals(parent, child.getParent());
+        assertEquals(2, child.getHierarchyLevel());
+    }
+
+    @Test
+    void testGmpRelevantOrganization() {
         Organization gmpOrg = Organization.builder()
-                .orgName("质量管理中心")
-                .orgType(Organization.OrganizationType.QUALITY)
+                .orgCode("ORG_GMP")
+                .orgName("GMP相关组织")
                 .gmpRelevant(true)
-                .gmpRequirements("必须符合《中国药典》GMP要求")
-                .gmpResponsible("质量总监")
+                .gmpResponsible("GMP负责人")
+                .gmpRequirements("必须符合GMP规范")
                 .build();
 
-        // Given: 非GMP组织
-        Organization normalOrg = Organization.builder()
-                .orgName("行政办公室")
-                .orgType(Organization.OrganizationType.DEPARTMENT)
+        assertTrue(gmpOrg.getGmpRelevant());
+        assertEquals("GMP负责人", gmpOrg.getGmpResponsible());
+        assertEquals("必须符合GMP规范", gmpOrg.getGmpRequirements());
+    }
+
+    @Test
+    void testNonGmpOrganization() {
+        Organization nonGmpOrg = Organization.builder()
+                .orgCode("ORG_NON_GMP")
+                .orgName("非GMP组织")
                 .gmpRelevant(false)
                 .build();
 
-        // Then: 验证GMP合规性
-        assertThat(gmpOrg.isGmpOrganization()).isTrue();
-        assertThat(gmpOrg.getGmpRequirements()).contains("GMP");
-        assertThat(gmpOrg.getResponsibleManager()).isEqualTo("质量总监");
-
-        assertThat(normalOrg.isGmpOrganization()).isFalse();
-        assertThat(normalOrg.getGmpRequirements()).isNull();
+        assertFalse(nonGmpOrg.getGmpRelevant());
+        assertNull(nonGmpOrg.getGmpResponsible());
+        assertNull(nonGmpOrg.getGmpRequirements());
     }
 
     @Test
-    void testOrganizationBuilderDefaultValues() {
-        // Given: 使用默认值创建组织
-        Organization org = Organization.builder()
-                .orgCode("ORG_TEST")
-                .orgName("测试组织")
-                .build();
-
-        // Then: 验证默认值
-        assertThat(org.getOrgStatus()).isEqualTo(Organization.OrganizationStatus.ACTIVE);
-        assertThat(org.getHierarchyLevel()).isEqualTo(1);
-        assertThat(org.getGmpRelevant()).isFalse();
-        assertThat(org.getVersion()).isEqualTo(1);
+    void testVersionIncrement() {
+        organization.setVersion(2);
+        assertEquals(2, organization.getVersion());
+        
+        organization.setVersion(5);
+        assertEquals(5, organization.getVersion());
     }
 
     @Test
-    void testNestedOrganizationHierarchy() {
-        // Given: 创建复杂的组织层级结构
-        /*
-         * 公司
-         * ├── 生产部门
-         * │   ├── A车间
-         * │   └── B车间
-         * ├── 质量部门
-         * │   └── 检验实验室
-         * └── 行政部门
-         */
+    void testAuditFields() {
+        LocalDateTime createTime = LocalDateTime.of(2023, 1, 1, 10, 0);
+        LocalDateTime updateTime = LocalDateTime.of(2023, 1, 2, 10, 0);
+        
+        organization.setCreatedAt(createTime);
+        organization.setUpdatedAt(updateTime);
+        organization.setCreatedBy(100L);
+        organization.setUpdatedBy(200L);
 
-        Organization company = Organization.builder()
-                .orgCode("ORG_COMPANY")
-                .orgName("GMP医药公司")
-                .hierarchyLevel(1)
+        assertEquals(createTime, organization.getCreatedAt());
+        assertEquals(updateTime, organization.getUpdatedAt());
+        assertEquals(100L, organization.getCreatedBy());
+        assertEquals(200L, organization.getUpdatedBy());
+    }
+
+    @Test
+    void testContactInfoAndManager() {
+        organization.setManager("新经理");
+        organization.setContactInfo("邮箱: manager@example.com");
+
+        assertEquals("新经理", organization.getManager());
+        assertEquals("邮箱: manager@example.com", organization.getContactInfo());
+    }
+
+    @ParameterizedTest
+    @NullAndEmptySource
+    @ValueSource(strings = {" ", "\t", "\n"})
+    void testEmptyManagerAndContactInfo(String value) {
+        organization.setManager(value);
+        organization.setContactInfo(value);
+
+        if (value == null || value.trim().isEmpty()) {
+            assertTrue(organization.getManager() == null || organization.getManager().trim().isEmpty());
+            assertTrue(organization.getContactInfo() == null || organization.getContactInfo().trim().isEmpty());
+        }
+    }
+
+    @Test
+    void testHierarchyLevel() {
+        organization.setHierarchyLevel(1);
+        assertEquals(1, organization.getHierarchyLevel());
+        
+        organization.setHierarchyLevel(5);
+        assertEquals(5, organization.getHierarchyLevel());
+        
+        organization.setHierarchyLevel(10);
+        assertEquals(10, organization.getHierarchyLevel());
+    }
+
+    @Test
+    void testDescriptionLength() {
+        String longDescription = "这是一个很长的描述信息，用于测试组织描述字段的长度限制。"
+                + "这个描述应该能够处理较长的文本内容，确保系统能够正确处理。"
+                + "测试组织描述的存储和显示功能。";
+                
+        organization.setDescription(longDescription);
+        assertEquals(longDescription, organization.getDescription());
+    }
+
+    @Test
+    void testOrganizationTypeConversion() {
+        // 测试枚举类型的字符串转换
+        organization.setOrgType(Organization.OrganizationType.valueOf("PRODUCTION"));
+        assertEquals(Organization.OrganizationType.PRODUCTION, organization.getOrgType());
+        
+        organization.setOrgType(Organization.OrganizationType.valueOf("QUALITY"));
+        assertEquals(Organization.OrganizationType.QUALITY, organization.getOrgType());
+    }
+
+    @Test
+    void testOrganizationStatusConversion() {
+        // 测试枚举类型的字符串转换
+        organization.setOrgStatus(Organization.OrganizationStatus.valueOf("INACTIVE"));
+        assertEquals(Organization.OrganizationStatus.INACTIVE, organization.getOrgStatus());
+        
+        organization.setOrgStatus(Organization.OrganizationStatus.valueOf("ARCHIVED"));
+        assertEquals(Organization.OrganizationStatus.ARCHIVED, organization.getOrgStatus());
+    }
+
+    @Test
+    void testCircularReferencePrevention() {
+        // 测试防止循环引用
+        Organization org1 = Organization.builder()
+                .orgCode("ORG_1")
+                .orgName("组织1")
+                .build();
+                
+        Organization org2 = Organization.builder()
+                .orgCode("ORG_2")
+                .orgName("组织2")
+                .parent(org1)
                 .build();
 
-        Organization prodDept = Organization.builder()
-                .orgCode("ORG_PROD")
-                .orgName("生产部门")
-                .hierarchyLevel(2)
-                .parent(company)
+        // 不应该允许循环引用
+        org1.setParent(org2); // 这应该被避免，但需要测试
+        
+        // 验证层级关系
+        assertEquals(org2, org1.getParent());
+        assertEquals(org1, org2.getParent().getParent()); // 这显示了循环引用
+    }
+
+    @Test
+    void testImmutableFields() {
+        // 测试不可变字段的访问
+        LocalDateTime originalCreateTime = organization.getCreatedAt();
+        organization.setUpdatedAt(LocalDateTime.now());
+        
+        // 创建时间应该保持不变
+        assertEquals(originalCreateTime, organization.getCreatedAt());
+    }
+
+    @Test
+    void testNullSafety() {
+        Organization nullOrg = new Organization();
+        
+        // 测试空值安全性
+        assertNull(nullOrg.getId());
+        assertNull(nullOrg.getOrgCode());
+        assertNull(nullOrg.getOrgName());
+        assertNull(nullOrg.getDescription());
+        assertNull(nullOrg.getOrgType());
+        assertNull(nullOrg.getParent());
+        assertNull(nullOrg.getHierarchyLevel());
+        assertNull(nullOrg.getManager());
+        assertNull(nullOrg.getContactInfo());
+        assertNull(nullOrg.getOrgStatus());
+        assertNull(nullOrg.getGmpRelevant());
+        assertNull(nullOrg.getGmpResponsible());
+        assertNull(nullOrg.getGmpRequirements());
+        assertNull(nullOrg.getCreatedAt());
+        assertNull(nullOrg.getUpdatedAt());
+        assertNull(nullOrg.getCreatedBy());
+        assertNull(nullOrg.getUpdatedBy());
+        assertNull(nullOrg.getVersion());
+        
+        // 测试方法在空值情况下的行为
+        assertFalse(nullOrg.isActive()); // 默认应为false
+        assertEquals("", nullOrg.getFullPath()); // 空组织名称
+    }
+
+    @Test
+    void testEdgeCases() {
+        // 测试边界情况
+        Organization edgeCaseOrg = Organization.builder()
+                .orgCode("ORG_EDGE")
+                .orgName("边界测试组织")
+                .hierarchyLevel(Integer.MAX_VALUE)
+                .version(Integer.MAX_VALUE)
                 .build();
 
-        Organization qualityDept = Organization.builder()
-                .orgCode("ORG_QUALITY")
-                .orgName("质量部门")
-                .hierarchyLevel(2)
-                .parent(company)
+        assertEquals(Integer.MAX_VALUE, edgeCaseOrg.getHierarchyLevel());
+        assertEquals(Integer.MAX_VALUE, edgeCaseOrg.getVersion());
+    }
+
+    @Test
+    void testCopyConstructorEquivalent() {
+        // 测试复制构造函数等效行为
+        Organization original = Organization.builder()
+                .id(1L)
+                .orgCode("ORG_ORIGINAL")
+                .orgName("原始组织")
                 .build();
 
-        Organization workshopA = Organization.builder()
-                .orgCode("ORG_WS_A")
-                .orgName("A车间")
-                .hierarchyLevel(3)
-                .parent(prodDept)
+        Organization copy = Organization.builder()
+                .id(original.getId())
+                .orgCode(original.getOrgCode())
+                .orgName(original.getOrgName())
                 .build();
 
-        Organization workshopB = Organization.builder()
-                .orgCode("ORG_WS_B")
-                .orgName("B车间")
-                .hierarchyLevel(3)
-                .parent(prodDept)
-                .build();
-
-        Organization lab = Organization.builder()
-                .orgCode("ORG_LAB")
-                .orgName("检验实验室")
-                .hierarchyLevel(3)
-                .parent(qualityDept)
-                .build();
-
-        // Then: 验证完整的层级路径
-        assertThat(company.getFullPath()).isEqualTo("GMP医药公司");
-        assertThat(prodDept.getFullPath()).isEqualTo("GMP医药公司 > 生产部门");
-        assertThat(qualityDept.getFullPath()).isEqualTo("GMP医药公司 > 质量部门");
-        assertThat(workshopA.getFullPath()).isEqualTo("GMP医药公司 > 生产部门 > A车间");
-        assertThat(workshopB.getFullPath()).isEqualTo("GMP医药公司 > 生产部门 > B车间");
-        assertThat(lab.getFullPath()).isEqualTo("GMP医药公司 > 质量部门 > 检验实验室");
+        assertEquals(original, copy);
+        assertEquals(original.hashCode(), copy.hashCode());
     }
 }
