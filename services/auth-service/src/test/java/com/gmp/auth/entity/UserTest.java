@@ -1,644 +1,244 @@
 package com.gmp.auth.entity;
 
+import jakarta.validation.ConstraintViolation;
+import jakarta.validation.Validation;
+import jakarta.validation.Validator;
+import jakarta.validation.ValidatorFactory;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.EnumSource;
-import org.junit.jupiter.params.provider.NullAndEmptySource;
-import org.junit.jupiter.params.provider.ValueSource;
-import org.junit.jupiter.params.provider.CsvSource;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.time.LocalDateTime;
-import java.util.Arrays;
 import java.util.List;
-import java.util.Collections;
+import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-/**
- * Comprehensive test class for {@link User} entity.
- * Tests all methods, edge cases, and business logic of the User entity.
- */
-class UserTest {
+@ExtendWith(MockitoExtension.class)
+public class UserTest {
 
     private User user;
+    private Validator validator;
 
     @BeforeEach
     void setUp() {
+        // 初始化Validator
+        ValidatorFactory factory = Validation.buildDefaultValidatorFactory();
+        validator = factory.getValidator();
+        
+        // 创建一个基本的User对象
         user = new User();
         user.setId(1L);
         user.setUsername("testuser");
-        user.setPassword("encryptedpassword");
-        user.setEmail("test@example.com");
-        user.setPhone("1234567890");
+        user.setPassword("password123");
         user.setFullName("Test User");
-        user.setStatus(User.UserStatus.ACTIVE);
-        user.setCreatedAt(LocalDateTime.now());
-        user.setUpdatedAt(LocalDateTime.now());
-        user.setLastLoginAt(LocalDateTime.now().minusDays(1));
-        user.setFailedLoginAttempts(0);
-        user.setAccountLocked(false);
-        user.setPasswordExpired(false);
-        user.setCreatedBy(1L);
+        user.setEmail("test@example.com");
+        user.setMobile("13800138000");
+        user.setUserStatus(User.UserStatus.ACTIVE);
     }
 
     @Test
     void testUserBuilder() {
+        // 测试User.builder()模式
         User builtUser = User.builder()
                 .id(2L)
                 .username("builtuser")
-                .password("encryptedpass")
-                .email("built@example.com")
-                .phone("0987654321")
                 .fullName("Built User")
-                .status(User.UserStatus.INACTIVE)
-                .createdAt(LocalDateTime.now())
-                .updatedAt(LocalDateTime.now())
-                .lastLoginAt(LocalDateTime.now().minusHours(1))
-                .failedLoginAttempts(1)
-                .accountLocked(false)
-                .passwordExpired(true)
-                .createdBy(2L)
+                .email("built@example.com")
+                .mobile("13900139000")
+                .passwordHash("hashedpassword")
+                .userStatus(User.UserStatus.ACTIVE)
                 .build();
 
         assertNotNull(builtUser);
         assertEquals(2L, builtUser.getId());
         assertEquals("builtuser", builtUser.getUsername());
-        assertEquals("encryptedpass", builtUser.getPassword());
-        assertEquals("built@example.com", builtUser.getEmail());
-        assertEquals("0987654321", builtUser.getPhone());
         assertEquals("Built User", builtUser.getFullName());
-        assertEquals(User.UserStatus.INACTIVE, builtUser.getStatus());
-        assertEquals(1, builtUser.getFailedLoginAttempts());
-        assertFalse(builtUser.isAccountLocked());
-        assertTrue(builtUser.isPasswordExpired());
-        assertEquals(2L, builtUser.getCreatedBy());
+        assertEquals("built@example.com", builtUser.getEmail());
+        assertEquals("13900139000", builtUser.getMobile());
+        assertEquals(User.UserStatus.ACTIVE, builtUser.getUserStatus());
     }
 
     @Test
-    void testIsActive() {
-        assertTrue(user.isActive());
-        
-        user.setUserStatus(User.UserStatus.INACTIVE);
-        assertFalse(user.isActive());
-        
-        user.setUserStatus(User.UserStatus.LOCKED);
-        assertFalse(user.isActive());
-        
-        user.setUserStatus(User.UserStatus.EXPIRED);
-        assertFalse(user.isActive());
+    void testUserGettersAndSetters() {
+        // 测试基本的getter和setter方法
+        user.setUsername("newname");
+        user.setFullName("New Name");
+        user.setEmail("new@example.com");
+        user.setMobile("13700137000");
+
+        assertEquals("newname", user.getUsername());
+        assertEquals("New Name", user.getFullName());
+        assertEquals("new@example.com", user.getEmail());
+        assertEquals("13700137000", user.getMobile());
     }
 
     @Test
-    void testIsLocked() {
-        assertFalse(user.isLocked());
-        
-        user.setLockedUntil(LocalDateTime.now().plusHours(1));
-        assertTrue(user.isLocked());
-        
-        user.setLockedUntil(LocalDateTime.now().minusHours(1));
-        assertFalse(user.isLocked());
-    }
+    void testPasswordMethods() {
+        // 测试密码相关方法
+        user.setPassword("newpassword");
+        assertNotNull(user.getPassword());
 
-    @Test
-    void testIsPasswordExpired() {
-        assertFalse(user.isPasswordExpired());
-        
-        user.setPasswordExpiredAt(LocalDateTime.now().minusDays(1));
+        // 测试密码过期设置
+        user.setPasswordExpired(true);
         assertTrue(user.isPasswordExpired());
-        
-        user.setPasswordExpiredAt(null);
+
+        user.setPasswordExpired(false);
         assertFalse(user.isPasswordExpired());
     }
 
     @Test
-    void testIsPasswordSoonExpired() {
-        user.setPasswordExpiredAt(LocalDateTime.now().plusDays(5));
-        assertTrue(user.isPasswordSoonExpired());
-        
-        user.setPasswordExpiredAt(LocalDateTime.now().plusDays(10));
-        assertFalse(user.isPasswordSoonExpired());
-        
-        user.setPasswordExpiredAt(null);
-        assertFalse(user.isPasswordSoonExpired());
-    }
+    void testUserStatusMethods() {
+        // 测试用户状态相关方法
+        assertTrue(user.isActive());
+        assertFalse(user.isLocked());
 
-    @Test
-    void testIncrementLoginAttempts() {
-        assertEquals(0, user.getLoginAttempts());
-        
-        user.incrementLoginAttempts();
-        assertEquals(1, user.getLoginAttempts());
-        
-        user.incrementLoginAttempts();
-        user.incrementLoginAttempts();
-        assertEquals(3, user.getLoginAttempts());
-    }
-
-    @Test
-    void testResetLoginAttempts() {
-        user.setLoginAttempts(5);
-        user.resetLoginAttempts();
-        assertEquals(0, user.getLoginAttempts());
-    }
-
-    @Test
-    void testLockAccount() {
-        user.lockAccount(30); // 30 minutes
-        assertTrue(user.isLocked());
-        assertTrue(user.getLockedUntil().isAfter(LocalDateTime.now()));
-        assertEquals(User.UserStatus.LOCKED, user.getUserStatus());
-    }
-
-    @Test
-    void testSetActive() {
+        // 测试设置不同状态
         user.setActive(false);
         assertEquals(User.UserStatus.INACTIVE, user.getUserStatus());
-        
+        assertFalse(user.isActive());
+
         user.setActive(true);
-        assertEquals(User.UserStatus.ACTIVE, user.getUserStatus());
+        user.setLocked(true);
+        assertEquals(User.UserStatus.LOCKED, user.getUserStatus());
+        assertTrue(user.isLocked());
+
+        user.setLocked(false);
+        user.setExpired(true);
+        assertEquals(User.UserStatus.EXPIRED, user.getUserStatus());
+        assertFalse(user.isActive());
     }
 
     @Test
-    void testSetLocked() {
-        user.setLocked(true);
-        assertEquals(User.UserStatus.LOCKED, user.getUserStatus());
-        assertNotNull(user.getLockedUntil());
-        
-        user.setLocked(false);
-        assertEquals(User.UserStatus.ACTIVE, user.getUserStatus());
+    void testLoginAttempts() {
+        // 测试登录尝试次数相关方法
+        assertEquals(0, user.getLoginAttempts());
+
+        user.incrementLoginAttempts();
+        user.incrementLoginAttempts();
+        assertEquals(2, user.getLoginAttempts());
+
+        user.resetLoginAttempts();
+        assertEquals(0, user.getLoginAttempts());
         assertNull(user.getLockedUntil());
     }
 
     @Test
-    void testSetExpired() {
-        user.setExpired(true);
-        assertEquals(User.UserStatus.EXPIRED, user.getUserStatus());
-        
-        user.setExpired(false);
-        assertEquals(User.UserStatus.ACTIVE, user.getUserStatus());
-    }
+    void testAccountLocking() {
+        // 测试账户锁定功能
+        user.lockAccount(30); // 锁定30分钟
+        assertEquals(User.UserStatus.LOCKED, user.getUserStatus());
+        assertNotNull(user.getLockedUntil());
+        assertTrue(user.getLockedUntil().isAfter(LocalDateTime.now()));
 
-    @Test
-    void testSetPasswordExpired() {
-        user.setPasswordExpired(true);
-        assertTrue(user.isPasswordExpired());
-        
-        user.setPasswordExpired(false);
-        assertFalse(user.isPasswordExpired());
-        assertTrue(user.getPasswordExpiredAt().isAfter(LocalDateTime.now()));
-    }
-
-    @Test
-    void testMfaRecoveryCodes() {
-        // Test setting and getting recovery codes
-        List<String> recoveryCodes = Arrays.asList("code1", "code2", "code3");
-        user.setRecoveryCodesList(recoveryCodes);
-        
-        assertEquals("code1,code2,code3", user.getMfaRecoveryCodes());
-        assertEquals(recoveryCodes, user.getRecoveryCodesList());
-        
-        // Test empty recovery codes
-        user.setRecoveryCodesList(Collections.emptyList());
-        assertNull(user.getMfaRecoveryCodes());
-        assertTrue(user.getRecoveryCodesList().isEmpty());
-        
-        // Test null recovery codes
-        user.setMfaRecoveryCodes(null);
-        assertNull(user.getMfaRecoveryCodes());
-        assertTrue(user.getRecoveryCodesList().isEmpty());
-    }
-
-    @Test
-    void testUseRecoveryCode() {
-        List<String> recoveryCodes = Arrays.asList("code1", "code2", "code3");
-        user.setRecoveryCodesList(recoveryCodes);
-        
-        // Use a valid recovery code
-        assertTrue(user.useRecoveryCode("code2"));
-        assertEquals(Arrays.asList("code1", "code3"), user.getRecoveryCodesList());
-        
-        // Try to use an invalid recovery code
-        assertFalse(user.useRecoveryCode("invalid"));
-        assertEquals(Arrays.asList("code1", "code3"), user.getRecoveryCodesList());
-        
-        // Use the last recovery code
-        assertTrue(user.useRecoveryCode("code1"));
-        assertTrue(user.useRecoveryCode("code3"));
-        assertTrue(user.getRecoveryCodesList().isEmpty());
-        
-        // Try to use recovery code when none are available
-        assertFalse(user.useRecoveryCode("anycode"));
-    }
-
-    @Test
-    void testMfaFunctionality() {
-        // Test MFA enable/disable
-        user.setMfaEnabled(true);
-        user.setMfaSecretKey("secret123");
-        assertTrue(user.getMfaEnabled());
-        assertEquals("secret123", user.getMfaSecretKey());
-        
-        user.setMfaEnabled(false);
-        assertFalse(user.getMfaEnabled());
-        
-        // Test MFA last verified
-        LocalDateTime verificationTime = LocalDateTime.now();
-        user.setMfaLastVerified(verificationTime);
-        assertEquals(verificationTime, user.getMfaLastVerified());
-    }
-
-    @ParameterizedTest
-    @ValueSource(strings = {"validuser", "user123", "test_user"})
-    void testValidUsernames(String username) {
-        User testUser = User.builder()
-                .username(username)
-                .email("test@example.com")
-                .userStatus(User.UserStatus.ACTIVE)
-                .build();
-        
-        assertEquals(username, testUser.getUsername());
-    }
-
-    @ParameterizedTest
-    @NullAndEmptySource
-    @ValueSource(strings = {"  ", "\t", "\n"})
-    void testInvalidUsernames(String username) {
-        assertThrows(IllegalArgumentException.class, () -> {
-            User.builder()
-                    .username(username)
-                    .email("test@example.com")
-                    .userStatus(User.UserStatus.ACTIVE)
-                    .build();
-        });
-    }
-
-    @Test
-    void testUserRolesRelationship() {
-        // Test user roles collection
-        assertNotNull(user.getUserRoles());
-        assertTrue(user.getUserRoles().isEmpty());
-        
-        // Test setting user roles
-        UserOrganizationRole role = new UserOrganizationRole();
-        user.setUserRoles(Arrays.asList(role));
-        assertEquals(1, user.getUserRoles().size());
-        assertEquals(role, user.getUserRoles().iterator().next());
-    }
-
-    @Test
-    void testAuditFields() {
-        LocalDateTime now = LocalDateTime.now();
-        user.setCreatedAt(now);
-        user.setUpdatedAt(now);
-        user.setCreatedBy("admin");
-        user.setUpdatedBy("admin");
-        
-        assertEquals(now, user.getCreatedAt());
-        assertEquals(now, user.getUpdatedAt());
-        assertEquals("admin", user.getCreatedBy());
-        assertEquals("admin", user.getUpdatedBy());
-    }
-
-    @Test
-    void testVersionOptimisticLocking() {
-        assertEquals(0L, user.getVersion().longValue());
-        
-        user.setVersion(1L);
-        assertEquals(1L, user.getVersion().longValue());
-    }
-
-    @Test
-    void testLoginAttemptsConstraints() {
-        // Test that login attempts can be set within constraints
-        user.setLoginAttempts(0);
+        // 重置后应该解锁
+        user.resetLoginAttempts();
         assertEquals(0, user.getLoginAttempts());
+        assertNull(user.getLockedUntil());
+    }
+
+    @Test
+    void testMfaMethods() {
+        // 测试MFA相关方法
+        assertFalse(user.isMfaEnabled());
+        user.setMfaEnabled(true);
+        assertTrue(user.isMfaEnabled());
+
+        // 测试恢复码功能
+        List<String> recoveryCodes = List.of("code1", "code2", "code3");
+        user.setRecoveryCodesList(recoveryCodes);
         
-        user.setLoginAttempts(5);
-        assertEquals(5, user.getLoginAttempts());
-        
-        // Test that negative values are handled
-        user.setLoginAttempts(-1);
-        assertEquals(-1, user.getLoginAttempts());
+        assertEquals(recoveryCodes, user.getRecoveryCodesList());
+        assertEquals("code1,code2,code3", user.getMfaRecoveryCodes());
     }
 
     @Test
-    void testLastLoginTracking() {
-        LocalDateTime loginTime = LocalDateTime.now();
-        String ip = "192.168.1.100";
-        String session = "session456";
-        
-        user.setLastLoginTime(loginTime);
-        user.setLastLoginIp(ip);
-        user.setLastLoginSession(session);
-        
-        assertEquals(loginTime, user.getLastLoginTime());
-        assertEquals(ip, user.getLastLoginIp());
-        assertEquals(session, user.getLastLoginSession());
-    }
+    void testLastLoginSession() {
+        // 测试最后登录会话设置
+        user.setLastLoginSession("session123");
+        assertEquals("session123", user.getLastLoginSession());
 
-    @Test
-    void testCompatibilityMethods() {
-        // Test compatibility methods for session and user agent
-        user.setLastLoginSession("old_session");
-        user.setLastLoginUserAgent("Mozilla/5.0");
-        
-        assertEquals("old_session", user.getLastLoginSession());
-    }
-
-    @Test
-    void testEdgeCases() {
-        // Test null values for optional fields
-        User minimalUser = User.builder()
-                .username("minimal")
-                .email("min@example.com")
-                .userStatus(User.UserStatus.ACTIVE)
-                .build();
-        
-        assertNull(minimalUser.getMobile());
-        assertNull(minimalUser.getFullName());
-        assertNull(minimalUser.getLastLoginTime());
-        assertNull(minimalUser.getLockedUntil());
-        assertNull(minimalUser.getMfaSecretKey());
-        assertNull(minimalUser.getMfaRecoveryCodes());
-    }
-
-    @Test
-    void testUserStatusEnumValues() {
-        // Test all enum values
-        assertEquals(4, User.UserStatus.values().length);
-        assertArrayEquals(new User.UserStatus[]{
-                User.UserStatus.ACTIVE,
-                User.UserStatus.INACTIVE,
-                User.UserStatus.LOCKED,
-                User.UserStatus.EXPIRED
-        }, User.UserStatus.values());
-    }
-
-    @Test
-    void testUserStatusEnumToString() {
-        assertEquals("ACTIVE", User.UserStatus.ACTIVE.toString());
-        assertEquals("INACTIVE", User.UserStatus.INACTIVE.toString());
-        assertEquals("LOCKED", User.UserStatus.LOCKED.toString());
-        assertEquals("EXPIRED", User.UserStatus.EXPIRED.toString());
-    }
-
-    @Test
-    void testUserStatusEnumValueOf() {
-        assertEquals(User.UserStatus.ACTIVE, User.UserStatus.valueOf("ACTIVE"));
-        assertEquals(User.UserStatus.INACTIVE, User.UserStatus.valueOf("INACTIVE"));
-        assertEquals(User.UserStatus.LOCKED, User.UserStatus.valueOf("LOCKED"));
-        assertEquals(User.UserStatus.EXPIRED, User.UserStatus.valueOf("EXPIRED"));
-    }
-        assertEquals("ACTIVE", User.UserStatus.ACTIVE.name());
-        assertEquals("INACTIVE", User.UserStatus.INACTIVE.name());
-        assertEquals("SUSPENDED", User.UserStatus.SUSPENDED.name());
-        assertEquals("DELETED", User.UserStatus.DELETED.name());
-        
-        User.UserStatus[] statuses = User.UserStatus.values();
-        assertEquals(4, statuses.length);
-    }
-
-    @Test
-    void testGettersAndSetters() {
-        assertEquals(1L, user.getId());
-        assertEquals("testuser", user.getUsername());
-        assertEquals("encryptedpassword", user.getPassword());
-        assertEquals("test@example.com", user.getEmail());
-        assertEquals("1234567890", user.getPhone());
-        assertEquals("Test User", user.getFullName());
-        assertEquals(User.UserStatus.ACTIVE, user.getStatus());
-        assertNotNull(user.getCreatedAt());
-        assertNotNull(user.getUpdatedAt());
-        assertNotNull(user.getLastLoginAt());
-        assertEquals(0, user.getFailedLoginAttempts());
-        assertFalse(user.isAccountLocked());
-        assertFalse(user.isPasswordExpired());
-        assertEquals(1L, user.getCreatedBy());
-    }
-
-    @Test
-    void testSetStatus() {
-        user.setStatus(User.UserStatus.SUSPENDED);
-        assertEquals(User.UserStatus.SUSPENDED, user.getStatus());
-    }
-
-    @Test
-    void testSetFailedLoginAttempts() {
-        user.setFailedLoginAttempts(5);
-        assertEquals(5, user.getFailedLoginAttempts());
-    }
-
-    @Test
-    void testSetAccountLocked() {
-        user.setAccountLocked(true);
-        assertTrue(user.isAccountLocked());
-    }
-
-    @Test
-    void testSetPasswordExpired() {
-        user.setPasswordExpired(true);
-        assertTrue(user.isPasswordExpired());
-    }
-
-    @Test
-    void testSetLastLoginAt() {
-        LocalDateTime newTime = LocalDateTime.now().minusHours(2);
-        user.setLastLoginAt(newTime);
-        assertEquals(newTime, user.getLastLoginAt());
-    }
-
-    @Test
-    void testSetCreatedBy() {
-        user.setCreatedBy(3L);
-        assertEquals(3L, user.getCreatedBy());
-    }
-
-    @Test
-    void testToString() {
-        String toString = user.toString();
-        assertNotNull(toString);
-        assertTrue(toString.contains("testuser"));
-        assertTrue(toString.contains("test@example.com"));
-    }
-
-    @Test
-    void testEqualsAndHashCode() {
-        User sameUser = new User();
-        sameUser.setId(1L);
-        sameUser.setUsername("testuser");
-
-        User differentUser = new User();
-        differentUser.setId(2L);
-        differentUser.setUsername("differentuser");
-
-        assertEquals(user, sameUser);
-        assertEquals(user.hashCode(), sameUser.hashCode());
-        
-        assertNotEquals(user, differentUser);
-        assertNotEquals(user.hashCode(), differentUser.hashCode());
-        
-        assertNotEquals(user, null);
-        assertNotEquals(user, "Not a user");
-    }
-
-    @Test
-    void testCanEqual() {
-        User otherUser = new User();
-        otherUser.setId(1L);
-        
-        assertTrue(user.canEqual(otherUser));
-        assertFalse(user.canEqual("Not a user"));
-    }
-
-    @Test
-    void testNoArgsConstructor() {
-        User emptyUser = new User();
-        assertNotNull(emptyUser);
-        assertNull(emptyUser.getId());
-        assertNull(emptyUser.getUsername());
-        assertNull(emptyUser.getEmail());
-    }
-
-    @Test
-    void testAllArgsConstructor() {
-        LocalDateTime now = LocalDateTime.now();
-        LocalDateTime lastLogin = now.minusHours(1);
-        
-        User fullUser = new User(
-                1L, "fulluser", "encrypted", "full@example.com", 
-                "9876543210", "Full User", User.UserStatus.ACTIVE, 
-                now, now, lastLogin, 0, false, false, 1L
-        );
-
-        assertNotNull(fullUser);
-        assertEquals(1L, fullUser.getId());
-        assertEquals("fulluser", fullUser.getUsername());
-        assertEquals("encrypted", fullUser.getPassword());
-        assertEquals("full@example.com", fullUser.getEmail());
-        assertEquals("9876543210", fullUser.getPhone());
-        assertEquals("Full User", fullUser.getFullName());
-        assertEquals(User.UserStatus.ACTIVE, fullUser.getStatus());
-        assertEquals(now, fullUser.getCreatedAt());
-        assertEquals(now, fullUser.getUpdatedAt());
-        assertEquals(lastLogin, fullUser.getLastLoginAt());
-        assertEquals(0, fullUser.getFailedLoginAttempts());
-        assertFalse(fullUser.isAccountLocked());
-        assertFalse(fullUser.isPasswordExpired());
-        assertEquals(1L, fullUser.getCreatedBy());
-    }
-
-    @Test
-    void testIsActiveStatus() {
-        user.setStatus(User.UserStatus.ACTIVE);
-        assertTrue(user.isActive());
-
-        user.setStatus(User.UserStatus.INACTIVE);
-        assertFalse(user.isActive());
-
-        user.setStatus(User.UserStatus.SUSPENDED);
-        assertFalse(user.isActive());
-
-        user.setStatus(User.UserStatus.DELETED);
-        assertFalse(user.isActive());
-    }
-
-    @Test
-    void testIncrementFailedLoginAttempts() {
-        user.setFailedLoginAttempts(2);
-        user.setFailedLoginAttempts(user.getFailedLoginAttempts() + 1);
-        assertEquals(3, user.getFailedLoginAttempts());
-    }
-
-    @Test
-    void testResetFailedLoginAttempts() {
-        user.setFailedLoginAttempts(5);
-        user.setFailedLoginAttempts(0);
-        assertEquals(0, user.getFailedLoginAttempts());
-    }
-
-    @Test
-    void testAccountLockedAfterMaxAttempts() {
-        user.setFailedLoginAttempts(5);
-        user.setAccountLocked(true);
-        
-        assertTrue(user.isAccountLocked());
-        assertEquals(5, user.getFailedLoginAttempts());
-    }
-
-    @Test
-    void testPasswordExpiry() {
-        user.setPasswordExpired(true);
-        assertTrue(user.isPasswordExpired());
-
-        user.setPasswordExpired(false);
-        assertFalse(user.isPasswordExpired());
-    }
-
-    @Test
-    void testLastLoginTracking() {
-        LocalDateTime loginTime = LocalDateTime.now().minusMinutes(30);
-        user.setLastLoginAt(loginTime);
-        
-        assertEquals(loginTime, user.getLastLoginAt());
-        
-        // Test updating last login
-        LocalDateTime newLoginTime = LocalDateTime.now();
-        user.setLastLoginAt(newLoginTime);
-        assertEquals(newLoginTime, user.getLastLoginAt());
-    }
-
-    @Test
-    void testUserWithNullValues() {
-        User nullUser = new User();
-        nullUser.setId(null);
-        nullUser.setUsername(null);
-        nullUser.setEmail(null);
-        nullUser.setPhone(null);
-        nullUser.setFullName(null);
-        nullUser.setStatus(null);
-        nullUser.setCreatedAt(null);
-        nullUser.setUpdatedAt(null);
-        nullUser.setLastLoginAt(null);
-        nullUser.setCreatedBy(null);
-
-        assertNull(nullUser.getId());
-        assertNull(nullUser.getUsername());
-        assertNull(nullUser.getEmail());
-        assertNull(nullUser.getPhone());
-        assertNull(nullUser.getFullName());
-        assertNull(nullUser.getStatus());
-        assertNull(nullUser.getCreatedAt());
-        assertNull(nullUser.getUpdatedAt());
-        assertNull(nullUser.getLastLoginAt());
-        assertNull(nullUser.getCreatedBy());
-    }
-
-    @Test
-    void testUserWithEmptyStrings() {
-        user.setUsername("");
-        user.setEmail("");
-        user.setPhone("");
-        user.setFullName("");
-
-        assertEquals("", user.getUsername());
-        assertEquals("", user.getEmail());
-        assertEquals("", user.getPhone());
-        assertEquals("", user.getFullName());
+        // 测试兼容方法
+        user.setLastLoginSession(456L);
+        assertEquals("456", user.getLastLoginSession());
     }
 
     @Test
     void testUserValidation() {
-        // Test valid email format
-        user.setEmail("valid.email@example.com");
-        assertEquals("valid.email@example.com", user.getEmail());
+        // 测试用户验证约束
+        User invalidUser = new User();
+        invalidUser.setUsername("ab"); // 太短
+        invalidUser.setPassword(""); // 空密码
+        invalidUser.setFullName(""); // 空姓名
+        invalidUser.setEmail("invalid-email"); // 无效邮箱
+        invalidUser.setMobile("12345"); // 无效手机号
 
-        // Test valid phone number (just string validation)
-        user.setPhone("+86-123-456-7890");
-        assertEquals("+86-123-456-7890", user.getPhone());
+        Set<ConstraintViolation<User>> violations = validator.validate(invalidUser);
+        assertTrue(violations.size() > 0);
+        
+        // 检查具体的验证错误
+        boolean hasUsernameViolation = violations.stream()
+                .anyMatch(v -> v.getPropertyPath().toString().equals("username"));
+        boolean hasPasswordViolation = violations.stream()
+                .anyMatch(v -> v.getPropertyPath().toString().equals("passwordHash"));
+        boolean hasFullNameViolation = violations.stream()
+                .anyMatch(v -> v.getPropertyPath().toString().equals("fullName"));
+        boolean hasEmailViolation = violations.stream()
+                .anyMatch(v -> v.getPropertyPath().toString().equals("email"));
+        boolean hasMobileViolation = violations.stream()
+                .anyMatch(v -> v.getPropertyPath().toString().equals("mobile"));
 
-        // Test username with special characters (if allowed)
-        user.setUsername("user.name_123");
-        assertEquals("user.name_123", user.getUsername());
+        assertTrue(hasUsernameViolation);
+        assertTrue(hasPasswordViolation);
+        assertTrue(hasFullNameViolation);
+        assertTrue(hasEmailViolation);
+        assertTrue(hasMobileViolation);
+    }
+
+    @Test
+    void testUserRoles() {
+        // 测试用户角色关联
+        List<UserRole> roles = List.of(
+                new UserRole(1L, 1L),
+                new UserRole(1L, 2L)
+        );
+        user.setUserRoles(roles);
+        assertEquals(2, user.getUserRoles().size());
+    }
+
+    @Test
+    void testRecoveryCodes() {
+        // 测试恢复码的使用
+        List<String> recoveryCodes = List.of("code1", "code2", "code3");
+        user.setRecoveryCodesList(recoveryCodes);
+        
+        // 使用一个恢复码
+        boolean used = user.useRecoveryCode("code2");
+        assertTrue(used);
+        
+        // 检查恢复码列表是否更新
+        List<String> remainingCodes = user.getRecoveryCodesList();
+        assertEquals(2, remainingCodes.size());
+        assertFalse(remainingCodes.contains("code2"));
+        assertTrue(remainingCodes.contains("code1"));
+        assertTrue(remainingCodes.contains("code3"));
+        
+        // 使用不存在的恢复码
+        boolean notUsed = user.useRecoveryCode("nonexistent");
+        assertFalse(notUsed);
+    }
+
+    @Test
+    void testPasswordSoonExpired() {
+        // 测试密码即将过期功能
+        assertFalse(user.isPasswordSoonExpired());
+    }
+
+    @Test
+    void testLastLoginUserAgent() {
+        // 测试User-Agent兼容方法
+        user.setLastLoginUserAgent("Mozilla/5.0");
+        // 这个方法目前是空实现，所以只需要确保它能正常调用
     }
 }

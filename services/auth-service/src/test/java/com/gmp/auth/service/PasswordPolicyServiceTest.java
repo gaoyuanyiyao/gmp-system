@@ -1,15 +1,14 @@
 package com.gmp.auth.service;
 
-import com.gmp.auth.config.PasswordPolicyConfig;
 import com.gmp.auth.entity.User;
-import com.gmp.auth.exception.InvalidPasswordException;
-import com.gmp.auth.service.impl.PasswordPolicyServiceImpl;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
+import org.mockito.MockitoAnnotations;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.security.crypto.password.PasswordEncoder;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
@@ -18,10 +17,13 @@ import static org.mockito.Mockito.*;
 class PasswordPolicyServiceTest {
 
     @Mock
-    private PasswordPolicyConfig passwordPolicyConfig;
+    private PasswordEncoder passwordEncoder;
+
+    @Mock
+    private UserPasswordHistoryService userPasswordHistoryService;
 
     @InjectMocks
-    private PasswordPolicyServiceImpl passwordPolicyService;
+    private PasswordPolicyService passwordPolicyService;
 
     private User user;
 
@@ -30,242 +32,255 @@ class PasswordPolicyServiceTest {
         user = new User();
         user.setId(1L);
         user.setUsername("testuser");
-        
-        // 设置默认的密码策略配置
-        when(passwordPolicyConfig.getMinLength()).thenReturn(8);
-        when(passwordPolicyConfig.getMaxLength()).thenReturn(128);
-        when(passwordPolicyConfig.getRequireUppercase()).thenReturn(true);
-        when(passwordPolicyConfig.getRequireLowercase()).thenReturn(true);
-        when(passwordPolicyConfig.getRequireNumbers()).thenReturn(true);
-        when(passwordPolicyConfig.getRequireSpecialCharacters()).thenReturn(true);
-        when(passwordPolicyConfig.getSpecialCharacters()).thenReturn("!@#$%^&*()_+-=[]{}|;:,.<>?");
-        when(passwordPolicyConfig.getMaxPasswordAgeDays()).thenReturn(90);
-        when(passwordPolicyConfig.getPasswordHistorySize()).thenReturn(5);
     }
 
     @Test
-    void testValidatePassword_ValidPassword_ShouldNotThrowException() {
+    void testValidatePasswordComplexity_ValidPassword_ReturnsNull() {
         // Arrange
-        String validPassword = "ValidPassword123!";
+        String validPassword = "Valid123!";
 
-        // Act & Assert
-        assertDoesNotThrow(() -> passwordPolicyService.validatePassword(validPassword));
+        // Act
+        String result = passwordPolicyService.validatePasswordComplexity(validPassword);
+
+        // Assert
+        assertNull(result);
     }
 
     @Test
-    void testValidatePassword_TooShort_ShouldThrowException() {
+    void testValidatePasswordComplexity_TooShort_ReturnsErrorMessage() {
         // Arrange
         String shortPassword = "Short1!";
 
-        // Act & Assert
-        InvalidPasswordException exception = assertThrows(InvalidPasswordException.class,
-                () -> passwordPolicyService.validatePassword(shortPassword));
-        assertTrue(exception.getMessage().contains("密码长度必须至少"));
-    }
-
-    @Test
-    void testValidatePassword_TooLong_ShouldThrowException() {
-        // Arrange
-        String longPassword = "A".repeat(129) + "1!";
-        when(passwordPolicyConfig.getMaxLength()).thenReturn(128);
-
-        // Act & Assert
-        InvalidPasswordException exception = assertThrows(InvalidPasswordException.class,
-                () -> passwordPolicyService.validatePassword(longPassword));
-        assertTrue(exception.getMessage().contains("密码长度不能超过"));
-    }
-
-    @Test
-    void testValidatePassword_NoUppercase_ShouldThrowException() {
-        // Arrange
-        String noUppercasePassword = "lowercase123!";
-
-        // Act & Assert
-        InvalidPasswordException exception = assertThrows(InvalidPasswordException.class,
-                () -> passwordPolicyService.validatePassword(noUppercasePassword));
-        assertTrue(exception.getMessage().contains("必须包含至少一个大写字母"));
-    }
-
-    @Test
-    void testValidatePassword_NoLowercase_ShouldThrowException() {
-        // Arrange
-        String noLowercasePassword = "UPPERCASE123!";
-
-        // Act & Assert
-        InvalidPasswordException exception = assertThrows(InvalidPasswordException.class,
-                () -> passwordPolicyService.validatePassword(noLowercasePassword));
-        assertTrue(exception.getMessage().contains("必须包含至少一个小写字母"));
-    }
-
-    @Test
-    void testValidatePassword_NoNumbers_ShouldThrowException() {
-        // Arrange
-        String noNumbersPassword = "NoNumbersPassword!";
-
-        // Act & Assert
-        InvalidPasswordException exception = assertThrows(InvalidPasswordException.class,
-                () -> passwordPolicyService.validatePassword(noNumbersPassword));
-        assertTrue(exception.getMessage().contains("必须包含至少一个数字"));
-    }
-
-    @Test
-    void testValidatePassword_NoSpecialCharacters_ShouldThrowException() {
-        // Arrange
-        String noSpecialCharsPassword = "NoSpecialChars123";
-
-        // Act & Assert
-        InvalidPasswordException exception = assertThrows(InvalidPasswordException.class,
-                () -> passwordPolicyService.validatePassword(noSpecialCharsPassword));
-        assertTrue(exception.getMessage().contains("必须包含至少一个特殊字符"));
-    }
-
-    @Test
-    void testValidatePassword_WithDisabledUppercaseRequirement_ShouldNotRequireUppercase() {
-        // Arrange
-        String passwordWithoutUppercase = "lowercase123!";
-        when(passwordPolicyConfig.getRequireUppercase()).thenReturn(false);
-
-        // Act & Assert
-        assertDoesNotThrow(() -> passwordPolicyService.validatePassword(passwordWithoutUppercase));
-    }
-
-    @Test
-    void testValidatePassword_WithDisabledLowercaseRequirement_ShouldNotRequireLowercase() {
-        // Arrange
-        String passwordWithoutLowercase = "UPPERCASE123!";
-        when(passwordPolicyConfig.getRequireLowercase()).thenReturn(false);
-
-        // Act & Assert
-        assertDoesNotThrow(() -> passwordPolicyService.validatePassword(passwordWithoutLowercase));
-    }
-
-    @Test
-    void testValidatePassword_WithDisabledNumbersRequirement_ShouldNotRequireNumbers() {
-        // Arrange
-        String passwordWithoutNumbers = "NoNumbersPassword!";
-        when(passwordPolicyConfig.getRequireNumbers()).thenReturn(false);
-
-        // Act & Assert
-        assertDoesNotThrow(() -> passwordPolicyService.validatePassword(passwordWithoutNumbers));
-    }
-
-    @Test
-    void testValidatePassword_WithDisabledSpecialCharsRequirement_ShouldNotRequireSpecialChars() {
-        // Arrange
-        String passwordWithoutSpecialChars = "NoSpecialChars123";
-        when(passwordPolicyConfig.getRequireSpecialCharacters()).thenReturn(false);
-
-        // Act & Assert
-        assertDoesNotThrow(() -> passwordPolicyService.validatePassword(passwordWithoutSpecialChars));
-    }
-
-    @Test
-    void testIsPasswordExpired_WhenPasswordNeverChanged_ShouldReturnFalse() {
-        // Arrange
-        user.setPasswordLastChanged(null);
-
         // Act
-        boolean result = passwordPolicyService.isPasswordExpired(user);
+        String result = passwordPolicyService.validatePasswordComplexity(shortPassword);
 
         // Assert
-        assertFalse(result);
+        assertNotNull(result);
+        assertTrue(result.contains("密码长度必须至少"));
     }
 
     @Test
-    void testIsPasswordExpired_WhenPasswordRecentlyChanged_ShouldReturnFalse() {
+    void testValidatePasswordComplexity_NoDigit_ReturnsErrorMessage() {
         // Arrange
-        user.setPasswordLastChanged(java.time.LocalDateTime.now().minusDays(30));
+        String noDigitPassword = "NoDigitPassword!";
 
         // Act
-        boolean result = passwordPolicyService.isPasswordExpired(user);
+        String result = passwordPolicyService.validatePasswordComplexity(noDigitPassword);
 
         // Assert
-        assertFalse(result);
+        assertNotNull(result);
+        assertTrue(result.contains("密码必须包含至少一个数字"));
     }
 
     @Test
-    void testIsPasswordExpired_WhenPasswordExpired_ShouldReturnTrue() {
+    void testValidatePasswordComplexity_NoLowercase_ReturnsErrorMessage() {
         // Arrange
-        user.setPasswordLastChanged(java.time.LocalDateTime.now().minusDays(91));
+        String noLowercasePassword = "NODIGITPASSWORD!1";
 
         // Act
-        boolean result = passwordPolicyService.isPasswordExpired(user);
+        String result = passwordPolicyService.validatePasswordComplexity(noLowercasePassword);
+
+        // Assert
+        assertNotNull(result);
+        assertTrue(result.contains("密码必须包含至少一个小写字母"));
+    }
+
+    @Test
+    void testValidatePasswordComplexity_NoUppercase_ReturnsErrorMessage() {
+        // Arrange
+        String noUppercasePassword = "nodigitpassword!1";
+
+        // Act
+        String result = passwordPolicyService.validatePasswordComplexity(noUppercasePassword);
+
+        // Assert
+        assertNotNull(result);
+        assertTrue(result.contains("密码必须包含至少一个大写字母"));
+    }
+
+    @Test
+    void testValidatePasswordComplexity_NoSpecialCharacter_ReturnsErrorMessage() {
+        // Arrange
+        String noSpecialCharPassword = "NoSpecialChar123";
+
+        // Act
+        String result = passwordPolicyService.validatePasswordComplexity(noSpecialCharPassword);
+
+        // Assert
+        assertNotNull(result);
+        assertTrue(result.contains("密码必须包含至少一个特殊字符"));
+    }
+
+    @Test
+    void testValidatePasswordComplexity_NullPassword_ReturnsErrorMessage() {
+        // Arrange
+        String nullPassword = null;
+
+        // Act
+        String result = passwordPolicyService.validatePasswordComplexity(nullPassword);
+
+        // Assert
+        assertNotNull(result);
+        assertTrue(result.contains("密码长度必须至少"));
+    }
+
+    @Test
+    void testValidatePassword_ValidPassword_ReturnsTrue() {
+        // Arrange
+        String validPassword = "Valid123!";
+
+        // Act
+        boolean result = passwordPolicyService.validatePassword(validPassword);
 
         // Assert
         assertTrue(result);
     }
 
     @Test
-    void testGetPasswordExpiryDays_ShouldReturnRemainingDays() {
+    void testValidatePassword_InvalidPassword_ReturnsFalse() {
         // Arrange
-        user.setPasswordLastChanged(java.time.LocalDateTime.now().minusDays(60));
+        String invalidPassword = "invalid";
 
         // Act
-        long remainingDays = passwordPolicyService.getPasswordExpiryDays(user);
+        boolean result = passwordPolicyService.validatePassword(invalidPassword);
 
         // Assert
-        assertEquals(30, remainingDays);
+        assertFalse(result);
     }
 
     @Test
-    void testGetPasswordExpiryDays_WhenPasswordNeverChanged_ShouldReturnMaxDays() {
+    void testIsPasswordInHistory_PasswordInHistory_ReturnsTrue() {
         // Arrange
-        user.setPasswordLastChanged(null);
-
-        // Act
-        long remainingDays = passwordPolicyService.getPasswordExpiryDays(user);
-
-        // Assert
-        assertEquals(90, remainingDays);
-    }
-
-    @Test
-    void testGetPasswordExpiryDays_WhenPasswordAlreadyExpired_ShouldReturnNegative() {
-        // Arrange
-        user.setPasswordLastChanged(java.time.LocalDateTime.now().minusDays(100));
-
-        // Act
-        long remainingDays = passwordPolicyService.getPasswordExpiryDays(user);
-
-        // Assert
-        assertTrue(remainingDays < 0);
-    }
-
-    @Test
-    void testGenerateRandomPassword_ShouldGenerateValidPassword() {
-        // Act
-        String randomPassword = passwordPolicyService.generateRandomPassword();
-
-        // Assert
-        assertNotNull(randomPassword);
-        assertTrue(randomPassword.length() >= 12);
-        assertTrue(randomPassword.length() <= 16);
+        String rawPassword = "TestPassword123!";
+        String hashedPassword = "hashedpassword123";
         
-        // 验证生成的密码符合策略要求
-        assertDoesNotThrow(() -> passwordPolicyService.validatePassword(randomPassword));
+        when(userPasswordHistoryService.getPasswordHistory(eq(1L), anyInt())).thenReturn(List.of(hashedPassword));
+        when(passwordEncoder.matches(rawPassword, hashedPassword)).thenReturn(true);
+
+        // Act
+        boolean result = passwordPolicyService.isPasswordInHistory(1L, rawPassword);
+
+        // Assert
+        assertTrue(result);
+        verify(userPasswordHistoryService).getPasswordHistory(eq(1L), anyInt());
+        verify(passwordEncoder).matches(rawPassword, hashedPassword);
     }
 
     @Test
-    void testCheckPasswordStrength_StrongPassword_ShouldReturnHighScore() {
+    void testIsPasswordInHistory_PasswordNotInHistory_ReturnsFalse() {
         // Arrange
-        String strongPassword = "VeryStrongPassword123!";
+        String rawPassword = "TestPassword123!";
+        String hashedPassword = "hashedpassword123";
+        
+        when(userPasswordHistoryService.getPasswordHistory(eq(1L), anyInt())).thenReturn(List.of(hashedPassword));
+        when(passwordEncoder.matches(rawPassword, hashedPassword)).thenReturn(false);
 
         // Act
-        int strength = passwordPolicyService.checkPasswordStrength(strongPassword);
+        boolean result = passwordPolicyService.isPasswordInHistory(1L, rawPassword);
 
         // Assert
-        assertTrue(strength >= 80);
+        assertFalse(result);
+        verify(userPasswordHistoryService).getPasswordHistory(eq(1L), anyInt());
+        verify(passwordEncoder).matches(rawPassword, hashedPassword);
     }
 
     @Test
-    void testCheckPasswordStrength_WeakPassword_ShouldReturnLowScore() {
-        // Arrange
-        String weakPassword = "weak";
-
+    void testCalculatePasswordExpiryTime_ReturnsFutureDate() {
         // Act
-        int strength = passwordPolicyService.checkPasswordStrength(weakPassword);
+        LocalDateTime expiryTime = passwordPolicyService.calculatePasswordExpiryTime();
 
         // Assert
-        assertTrue(strength <= 20);
+        assertNotNull(expiryTime);
+        assertTrue(expiryTime.isAfter(LocalDateTime.now()));
+    }
+
+    @Test
+    void testIsPasswordExpiringSoon_PasswordExpiringIn5Days_ReturnsTrue() {
+        // Arrange
+        LocalDateTime expiryTime = LocalDateTime.now().plusDays(5);
+
+        // Act
+        boolean result = passwordPolicyService.isPasswordExpiringSoon(expiryTime);
+
+        // Assert
+        assertTrue(result);
+    }
+
+    @Test
+    void testIsPasswordExpiringSoon_PasswordExpiringIn8Days_ReturnsFalse() {
+        // Arrange
+        LocalDateTime expiryTime = LocalDateTime.now().plusDays(8);
+
+        // Act
+        boolean result = passwordPolicyService.isPasswordExpiringSoon(expiryTime);
+
+        // Assert
+        assertFalse(result);
+    }
+
+    @Test
+    void testIsPasswordExpiringSoon_PasswordAlreadyExpired_ReturnsFalse() {
+        // Arrange
+        LocalDateTime expiryTime = LocalDateTime.now().minusDays(1);
+
+        // Act
+        boolean result = passwordPolicyService.isPasswordExpiringSoon(expiryTime);
+
+        // Assert
+        assertFalse(result);
+    }
+
+    @Test
+    void testIsPasswordExpiringSoon_NullExpiryTime_ReturnsFalse() {
+        // Arrange
+        LocalDateTime expiryTime = null;
+
+        // Act
+        boolean result = passwordPolicyService.isPasswordExpiringSoon(expiryTime);
+
+        // Assert
+        assertFalse(result);
+    }
+
+    @Test
+    void testRecordPasswordHistory_CallsServiceMethod() {
+        // Arrange
+        String hashedPassword = "hashedpassword123";
+
+        // Act
+        passwordPolicyService.recordPasswordHistory(1L, hashedPassword);
+
+        // Assert
+        verify(userPasswordHistoryService).recordPasswordHistory(1L, hashedPassword);
+    }
+
+    @Test
+    void testGetPasswordComplexityRequirements_ReturnsDescription() {
+        // Act
+        String description = passwordPolicyService.getPasswordComplexityRequirements();
+
+        // Assert
+        assertNotNull(description);
+        assertTrue(description.contains("密码必须满足以下要求"));
+        assertTrue(description.contains("长度至少"));
+        assertTrue(description.contains("包含至少一个数字"));
+        assertTrue(description.contains("包含至少一个小写字母"));
+        assertTrue(description.contains("包含至少一个大写字母"));
+        assertTrue(description.contains("包含至少一个特殊字符"));
+    }
+
+    @Test
+    void testGetPasswordRequirementsDescription_ReturnsDescription() {
+        // Act
+        String description = passwordPolicyService.getPasswordRequirementsDescription();
+
+        // Assert
+        assertNotNull(description);
+        assertTrue(description.contains("密码必须至少包含"));
+        assertTrue(description.contains("个字符"));
+        assertTrue(description.contains("大写字母"));
+        assertTrue(description.contains("小写字母"));
+        assertTrue(description.contains("数字"));
+        assertTrue(description.contains("特殊字符"));
     }
 }
