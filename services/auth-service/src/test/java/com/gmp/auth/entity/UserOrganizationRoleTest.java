@@ -47,7 +47,7 @@ class UserOrganizationRoleTest {
                 .organizationId(2001L)
                 .roleId(3001L)
                 .status(AssignmentStatus.ACTIVE)
-                .assignedBy("admin")
+                .assignedBy(1L) // 使用Long类型而不是String
                 .assignedAt(now)
                 .effectiveFrom(now)
                 .effectiveUntil(oneYearLater)
@@ -90,10 +90,12 @@ class UserOrganizationRoleTest {
     @DisplayName("测试AssignmentStatus的isActiveStatus方法")
     void testIsActiveStatus() {
         assertTrue(AssignmentStatus.ACTIVE.isActiveStatus());
-        assertFalse(AssignmentStatus.PENDING_APPROVAL.isActiveStatus());
+        assertTrue(AssignmentStatus.APPROVED.isActiveStatus());
+        assertFalse(AssignmentStatus.PENDING.isActiveStatus());
         assertFalse(AssignmentStatus.EXPIRED.isActiveStatus());
         assertFalse(AssignmentStatus.REVOKED.isActiveStatus());
-        assertFalse(AssignmentStatus.INACTIVE.isActiveStatus());
+        assertFalse(AssignmentStatus.SUSPENDED.isActiveStatus());
+        assertFalse(AssignmentStatus.REJECTED.isActiveStatus());
     }
 
     @Test
@@ -134,7 +136,7 @@ class UserOrganizationRoleTest {
     @Test
     @DisplayName("测试isEffective方法 - 非活跃状态")
     void testIsEffective_InactiveStatus() {
-        userOrgRole.setStatus(AssignmentStatus.INACTIVE);
+        userOrgRole.setStatus(AssignmentStatus.SUSPENDED);
         userOrgRole.setEffectiveFrom(now);
         userOrgRole.setEffectiveUntil(oneYearLater);
         assertFalse(userOrgRole.isEffective());
@@ -146,7 +148,7 @@ class UserOrganizationRoleTest {
         userOrgRole.setStatus(AssignmentStatus.ACTIVE);
         userOrgRole.setEffectiveFrom(now);
         userOrgRole.setEffectiveUntil(now.plusDays(7)); // 7天后过期
-        assertTrue(userOrgRole.isExpiringSoon());
+        assertTrue(userOrgRole.isExpiringSoon(30)); // 30天内过期
     }
 
     @Test
@@ -155,7 +157,7 @@ class UserOrganizationRoleTest {
         userOrgRole.setStatus(AssignmentStatus.ACTIVE);
         userOrgRole.setEffectiveFrom(now);
         userOrgRole.setEffectiveUntil(oneMonthLater); // 1个月后过期
-        assertFalse(userOrgRole.isExpiringSoon());
+        assertFalse(userOrgRole.isExpiringSoon(15)); // 15天内不过期
     }
 
     @Test
@@ -196,24 +198,24 @@ class UserOrganizationRoleTest {
     @DisplayName("测试GMP要求设置")
     void testGmpRequirements() {
         userOrgRole.setGmpRequired(true);
-        userOrgRole.setQualificationRequired(true);
-        userOrgRole.setTrainingRequired(true);
+        userOrgRole.setQualificationRequired("Required");
+        userOrgRole.setTrainingRequired("Required");
         
-        assertTrue(userOrgRole.isGmpRequired());
-        assertTrue(userOrgRole.isQualificationRequired());
-        assertTrue(userOrgRole.isTrainingRequired());
+        assertTrue(userOrgRole.getGmpRequired());
+        assertEquals("Required", userOrgRole.getQualificationRequired());
+        assertEquals("Required", userOrgRole.getTrainingRequired());
     }
 
     @Test
     @DisplayName("测试非GMP要求设置")
     void testNonGmpRequirements() {
         userOrgRole.setGmpRequired(false);
-        userOrgRole.setQualificationRequired(false);
-        userOrgRole.setTrainingRequired(false);
+        userOrgRole.setQualificationRequired("Not Required");
+        userOrgRole.setTrainingRequired("Not Required");
         
-        assertFalse(userOrgRole.isGmpRequired());
-        assertFalse(userOrgRole.isQualificationRequired());
-        assertFalse(userOrgRole.isTrainingRequired());
+        assertFalse(userOrgRole.getGmpRequired());
+        assertEquals("Not Required", userOrgRole.getQualificationRequired());
+        assertEquals("Not Required", userOrgRole.getTrainingRequired());
     }
 
     // 审批工作流测试
@@ -221,13 +223,13 @@ class UserOrganizationRoleTest {
     @DisplayName("测试审批要求")
     void testApprovalRequired() {
         userOrgRole.setApprovalRequired(true);
-        userOrgRole.setApprovedBy("manager");
+        userOrgRole.setApprovedBy(2L); // 2L是经理的ID
         userOrgRole.setApprovedAt(now);
         userOrgRole.setApprovalNote("Approved by manager");
         
-        assertTrue(userOrgRole.isApprovalRequired());
-        assertTrue(userOrgRole.requiresApproval());
-        assertEquals("manager", userOrgRole.getApprovedBy());
+        assertTrue(userOrgRole.getApprovalRequired());
+        assertTrue(userOrgRole.getApprovalRequired());
+        assertEquals(2L, userOrgRole.getApprovedBy());
         assertEquals(now, userOrgRole.getApprovedAt());
         assertEquals("Approved by manager", userOrgRole.getApprovalNote());
     }
@@ -355,10 +357,12 @@ class UserOrganizationRoleTest {
     // 参数化测试 - 不同状态组合
     @CsvSource({
         "ACTIVE, true",
-        "PENDING_APPROVAL, false",
+        "APPROVED, true",
+        "PENDING, false",
         "EXPIRED, false",
         "REVOKED, false",
-        "INACTIVE, false"
+        "SUSPENDED, false",
+        "REJECTED, false"
     })
     @ParameterizedTest
     @DisplayName("参数化测试 - 状态与有效性关系")

@@ -43,10 +43,10 @@ class SubsystemControllerTest {
         
         subsystem = new Subsystem();
         subsystem.setId(1L);
-        subsystem.setName("GMP Document Management");
-        subsystem.setCode("GDM");
+        subsystem.setSubsystemCode("GDM");
+        subsystem.setSubsystemName("GMP Document Management");
         subsystem.setDescription("GMP Document Management System");
-        subsystem.setStatus(Subsystem.SubsystemStatus.ACTIVE);
+        subsystem.setEnabled(true);
     }
 
     @Test
@@ -209,118 +209,62 @@ class SubsystemControllerTest {
     }
 
     @Test
-    void testGetActiveSubsystems_Success() throws Exception {
+    void testGetEnabledSubsystems_Success() throws Exception {
         // Arrange
-        List<Subsystem> activeSubsystems = Arrays.asList(subsystem);
-        when(subsystemService.getActiveSubsystems()).thenReturn(activeSubsystems);
+        List<Subsystem> enabledSubsystems = Arrays.asList(subsystem);
+        when(subsystemService.getEnabledSubsystems()).thenReturn(enabledSubsystems);
 
         // Act & Assert
-        mockMvc.perform(get("/api/subsystems/active"))
+        mockMvc.perform(get("/api/subsystems/enabled"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.success").value(true))
-                .andExpect(jsonPath("$.data[0].status").value("ACTIVE"));
+                .andExpect(jsonPath("$.data[0].enabled").value(true));
 
-        verify(subsystemService, times(1)).getActiveSubsystems();
+        verify(subsystemService, times(1)).getEnabledSubsystems();
     }
 
     @Test
-    void testActivateSubsystem_Success() throws Exception {
+    void testToggleSubsystemStatus_Enable_Success() throws Exception {
         // Arrange
-        when(subsystemService.activateSubsystem(1L)).thenReturn(true);
+        when(subsystemService.toggleSubsystemStatus(eq(1L), eq(true))).thenReturn(subsystem);
 
         // Act & Assert
-        mockMvc.perform(post("/api/subsystems/1/activate"))
+        mockMvc.perform(put("/api/subsystems/1/status")
+                .param("enabled", "true"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.success").value(true))
-                .andExpect(jsonPath("$.message").value("Subsystem activated successfully"));
+                .andExpect(jsonPath("$.message").value("Subsystem status updated successfully"));
 
-        verify(subsystemService, times(1)).activateSubsystem(1L);
+        verify(subsystemService, times(1)).toggleSubsystemStatus(eq(1L), eq(true));
     }
 
     @Test
-    void testActivateSubsystem_NotFound() throws Exception {
+    void testToggleSubsystemStatus_Disable_Success() throws Exception {
         // Arrange
-        when(subsystemService.activateSubsystem(1L)).thenReturn(false);
+        subsystem.setEnabled(false);
+        when(subsystemService.toggleSubsystemStatus(eq(1L), eq(false))).thenReturn(subsystem);
 
         // Act & Assert
-        mockMvc.perform(post("/api/subsystems/1/activate"))
+        mockMvc.perform(put("/api/subsystems/1/status")
+                .param("enabled", "false"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.message").value("Subsystem status updated successfully"));
+
+        verify(subsystemService, times(1)).toggleSubsystemStatus(eq(1L), eq(false));
+    }
+
+    @Test
+    void testToggleSubsystemStatus_NotFound() throws Exception {
+        // Arrange
+        when(subsystemService.toggleSubsystemStatus(eq(1L), eq(true))).thenReturn(null);
+
+        // Act & Assert
+        mockMvc.perform(put("/api/subsystems/1/status")
+                .param("enabled", "true"))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.success").value(false));
 
-        verify(subsystemService, times(1)).activateSubsystem(1L);
-    }
-
-    @Test
-    void testDeactivateSubsystem_Success() throws Exception {
-        // Arrange
-        when(subsystemService.deactivateSubsystem(1L)).thenReturn(true);
-
-        // Act & Assert
-        mockMvc.perform(post("/api/subsystems/1/deactivate"))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.success").value(true))
-                .andExpect(jsonPath("$.message").value("Subsystem deactivated successfully"));
-
-        verify(subsystemService, times(1)).deactivateSubsystem(1L);
-    }
-
-    @Test
-    void testDeactivateSubsystem_NotFound() throws Exception {
-        // Arrange
-        when(subsystemService.deactivateSubsystem(1L)).thenReturn(false);
-
-        // Act & Assert
-        mockMvc.perform(post("/api/subsystems/1/deactivate"))
-                .andExpect(status().isNotFound())
-                .andExpect(jsonPath("$.success").value(false));
-
-        verify(subsystemService, times(1)).deactivateSubsystem(1L);
-    }
-
-    @Test
-    void testGetSubsystemCount_Success() throws Exception {
-        // Arrange
-        when(subsystemService.getSubsystemCount()).thenReturn(5L);
-
-        // Act & Assert
-        mockMvc.perform(get("/api/subsystems/count"))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.success").value(true))
-                .andExpect(jsonPath("$.data").value(5L));
-
-        verify(subsystemService, times(1)).getSubsystemCount();
-    }
-
-    @Test
-    void testSearchSubsystems_Success() throws Exception {
-        // Arrange
-        List<Subsystem> searchResults = Arrays.asList(subsystem);
-        when(subsystemService.searchSubsystems("Document")).thenReturn(searchResults);
-
-        // Act & Assert
-        mockMvc.perform(get("/api/subsystems/search")
-                .param("keyword", "Document"))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.success").value(true))
-                .andExpect(jsonPath("$.data[0].name").value("GMP Document Management"));
-
-        verify(subsystemService, times(1)).searchSubsystems("Document");
-    }
-
-    @Test
-    void testSearchSubsystems_EmptyKeyword() throws Exception {
-        // Act & Assert
-        mockMvc.perform(get("/api/subsystems/search")
-                .param("keyword", ""))
-                .andExpect(status().isBadRequest());
-    }
-
-    @Test
-    void testHealthCheck() throws Exception {
-        // Act & Assert
-        mockMvc.perform(get("/api/subsystems/health"))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.success").value(true))
-                .andExpect(jsonPath("$.message").value("Subsystem service is healthy"));
+        verify(subsystemService, times(1)).toggleSubsystemStatus(eq(1L), eq(true));
     }
 }

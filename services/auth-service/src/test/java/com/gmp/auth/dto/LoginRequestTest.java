@@ -7,153 +7,96 @@ import static org.junit.jupiter.api.Assertions.*;
 class LoginRequestTest {
 
     @Test
-    void testLoginRequestBuilder() {
-        LoginRequest loginRequest = LoginRequest.builder()
-                .username("testuser")
-                .password("password123")
-                .build();
-
-        assertNotNull(loginRequest);
-        assertEquals("testuser", loginRequest.getUsername());
-        assertEquals("password123", loginRequest.getPassword());
-    }
-
-    @Test
-    void testLoginRequestAllArgsConstructor() {
-        LoginRequest loginRequest = new LoginRequest("testuser", "password123");
-
-        assertNotNull(loginRequest);
-        assertEquals("testuser", loginRequest.getUsername());
-        assertEquals("password123", loginRequest.getPassword());
-    }
-
-    @Test
-    void testLoginRequestNoArgsConstructor() {
+    void testLoginRequestDefaultConstructor() {
         LoginRequest loginRequest = new LoginRequest();
 
         assertNotNull(loginRequest);
         assertNull(loginRequest.getUsername());
         assertNull(loginRequest.getPassword());
+        assertFalse(loginRequest.getRememberMe());
+        assertNull(loginRequest.getCaptchaCode());
+        assertNull(loginRequest.getIpAddress());
+        assertNull(loginRequest.getUserAgent());
+        assertNull(loginRequest.getOrganizationId());
+        assertNull(loginRequest.getMfaCode());
     }
 
     @Test
-    void testLoginRequestSetters() {
+    void testLoginRequestSettersAndGetters() {
         LoginRequest loginRequest = new LoginRequest();
-        loginRequest.setUsername("newuser");
-        loginRequest.setPassword("newpassword");
-
-        assertEquals("newuser", loginRequest.getUsername());
-        assertEquals("newpassword", loginRequest.getPassword());
-    }
-
-    @Test
-    void testLoginRequestToString() {
-        LoginRequest loginRequest = new LoginRequest("testuser", "password123");
-        String toString = loginRequest.toString();
-
-        assertNotNull(toString);
-        assertTrue(toString.contains("testuser"));
-        assertTrue(toString.contains("password123"));
-    }
-
-    @Test
-    void testLoginRequestEqualsAndHashCode() {
-        LoginRequest request1 = new LoginRequest("testuser", "password123");
-        LoginRequest request2 = new LoginRequest("testuser", "password123");
-        LoginRequest request3 = new LoginRequest("different", "password");
-
-        assertEquals(request1, request2);
-        assertEquals(request1.hashCode(), request2.hashCode());
         
-        assertNotEquals(request1, request3);
-        assertNotEquals(request1.hashCode(), request3.hashCode());
-        
-        assertNotEquals(request1, null);
-        assertNotEquals(request1, "Not a LoginRequest");
+        loginRequest.setUsername("testuser");
+        loginRequest.setPassword("password123");
+        loginRequest.setRememberMe(true);
+        loginRequest.setCaptchaCode("ABCD1234");
+        loginRequest.setIpAddress("192.168.1.1");
+        loginRequest.setUserAgent("Mozilla/5.0");
+        loginRequest.setOrganizationId(123L);
+        loginRequest.setMfaCode("123456");
+
+        assertEquals("testuser", loginRequest.getUsername());
+        assertEquals("password123", loginRequest.getPassword());
+        assertTrue(loginRequest.getRememberMe());
+        assertEquals("ABCD1234", loginRequest.getCaptchaCode());
+        assertEquals("192.168.1.1", loginRequest.getIpAddress());
+        assertEquals("Mozilla/5.0", loginRequest.getUserAgent());
+        assertEquals(123L, loginRequest.getOrganizationId());
+        assertEquals("123456", loginRequest.getMfaCode());
     }
 
     @Test
     void testLoginRequestWithNullValues() {
-        LoginRequest loginRequest = new LoginRequest(null, null);
+        LoginRequest loginRequest = new LoginRequest();
+        
+        loginRequest.setUsername(null);
+        loginRequest.setPassword(null);
+        loginRequest.setRememberMe(false);
+        loginRequest.setCaptchaCode(null);
+        loginRequest.setIpAddress(null);
+        loginRequest.setUserAgent(null);
+        loginRequest.setOrganizationId(null);
+        loginRequest.setMfaCode(null);
 
         assertNull(loginRequest.getUsername());
         assertNull(loginRequest.getPassword());
-
-        loginRequest.setUsername("user");
-        loginRequest.setPassword(null);
-
-        assertEquals("user", loginRequest.getUsername());
-        assertNull(loginRequest.getPassword());
+        assertFalse(loginRequest.getRememberMe());
+        assertNull(loginRequest.getCaptchaCode());
+        assertNull(loginRequest.getIpAddress());
+        assertNull(loginRequest.getUserAgent());
+        assertNull(loginRequest.getOrganizationId());
+        assertNull(loginRequest.getMfaCode());
     }
 
     @Test
     void testLoginRequestWithEmptyStrings() {
-        LoginRequest loginRequest = new LoginRequest("", "");
+        LoginRequest loginRequest = new LoginRequest();
+        
+        loginRequest.setUsername("");
+        loginRequest.setPassword("");
+        loginRequest.setCaptchaCode("");
+        loginRequest.setIpAddress("");
+        loginRequest.setUserAgent("");
+        loginRequest.setMfaCode("");
 
         assertEquals("", loginRequest.getUsername());
         assertEquals("", loginRequest.getPassword());
+        assertEquals("", loginRequest.getCaptchaCode());
+        assertEquals("", loginRequest.getIpAddress());
+        assertEquals("", loginRequest.getUserAgent());
+        assertEquals("", loginRequest.getMfaCode());
     }
 
     @Test
-    void testLoginRequestCanEqual() {
-        LoginRequest request1 = new LoginRequest("user", "pass");
-        LoginRequest request2 = new LoginRequest("user", "pass");
-
-        assertTrue(request1.canEqual(request2));
-        assertFalse(request1.canEqual("Not a LoginRequest"));
-    }
-
-    @Test
-    void testLoginRequestValidation() {
-        // Test with various username formats
-        LoginRequest request1 = new LoginRequest("user.name", "pass");
-        assertEquals("user.name", request1.getUsername());
-
-        LoginRequest request2 = new LoginRequest("user_name", "pass");
-        assertEquals("user_name", request2.getUsername());
-
-        LoginRequest request3 = new LoginRequest("user123", "pass");
-        assertEquals("user123", request3.getUsername());
-
-        // Test password with special characters
-        LoginRequest request4 = new LoginRequest("user", "pass@123#");
-        assertEquals("pass@123#", request4.getPassword());
-    }
-
-    @Test
-    void testLoginRequestBuilderWithNullValues() {
-        LoginRequest loginRequest = LoginRequest.builder()
-                .username(null)
-                .password(null)
-                .build();
-
-        assertNotNull(loginRequest);
-        assertNull(loginRequest.getUsername());
-        assertNull(loginRequest.getPassword());
-    }
-
-    @Test
-    void testLoginRequestBuilderWithEmptyValues() {
-        LoginRequest loginRequest = LoginRequest.builder()
-                .username("")
-                .password("")
-                .build();
-
-        assertNotNull(loginRequest);
-        assertEquals("", loginRequest.getUsername());
-        assertEquals("", loginRequest.getPassword());
-    }
-
-    @Test
-    void testLoginRequestCopy() {
-        LoginRequest original = new LoginRequest("user", "pass");
-        LoginRequest copy = LoginRequest.builder()
-                .username(original.getUsername())
-                .password(original.getPassword())
-                .build();
-
-        assertEquals(original, copy);
-        assertEquals(original.getUsername(), copy.getUsername());
-        assertEquals(original.getPassword(), copy.getPassword());
+    void testLoginRequestRememberMeDefaultValue() {
+        LoginRequest loginRequest1 = new LoginRequest();
+        assertFalse(loginRequest1.getRememberMe());
+        
+        LoginRequest loginRequest2 = new LoginRequest();
+        loginRequest2.setRememberMe(true);
+        assertTrue(loginRequest2.getRememberMe());
+        
+        LoginRequest loginRequest3 = new LoginRequest();
+        loginRequest3.setRememberMe(false);
+        assertFalse(loginRequest3.getRememberMe());
     }
 }
