@@ -26,7 +26,7 @@
         <bcrypt.version>0.10.2</bcrypt.version>
 
         <!-- Database -->
-        <postgresql.version>42.7.1</postgresql.version>
+        <postgresql.version>42.7.2</postgresql.version>
         <h2.version>2.2.224</h2.version>
         <redis.version>4.3.0</redis.version>
 
